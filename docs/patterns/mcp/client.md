@@ -6,7 +6,7 @@ This guide covers building Model Context Protocol (MCP) clients that can connect
 
 - Python 3.8 or higher
 - Understanding of async programming
-- Basic knowledge of JSON-RPC protocol
+- Basic knowledge of JSON-RPC protocol (see our [JSON-RPC guide](../../json-rpc.md))
 
 ## Installation
 
