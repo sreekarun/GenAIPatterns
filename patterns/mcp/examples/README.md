@@ -11,6 +11,14 @@ A complete example showing:
 - Resource management
 - Error handling patterns
 
+### [streamable_http_server.py](./streamable_http_server.py) & [streamable_http_client.py](./streamable_http_client.py)
+**New!** Comprehensive Streamable HTTP examples featuring:
+- Real-time data streaming with Server-Sent Events (SSE)
+- Progressive result delivery for long-running operations
+- Authentication and security patterns
+- Performance monitoring and metrics
+- HTTP-compatible transport for web integration
+
 ### [hosted_solution/](./hosted_solution/)
 A production-ready example featuring:
 - Cloud deployment configuration
@@ -79,14 +87,36 @@ async def get_config():
 config = await client.read_resource("data://config")
 ```
 
-### Batch Processing
+### Streaming Data Processing
 ```python
-# Client sends batch request
-operations = [
-    {"type": "call_tool", "tool": "process", "arguments": {"data": item}}
-    for item in batch_data
-]
-results = await client.batch_operations(operations)
+# Server provides streaming tool
+@server.tool()
+async def stream_data_analysis(dataset: str, chunk_size: int = 100) -> str:
+    for i in range(0, total_items, chunk_size):
+        # Process chunk and yield progress
+        await asyncio.sleep(0.1)
+        progress = min(i + chunk_size, total_items)
+        yield f"Processed {progress}/{total_items} items"
+    return "Analysis complete"
+
+# Client consumes stream
+async for update in client.call_streaming_tool("stream_data_analysis", 
+                                                dataset="user_data"):
+    print(f"Progress: {update}")
+```
+
+### Real-time Monitoring
+```python
+# Stream real-time metrics via HTTP
+@app.get("/metrics-stream")
+async def metrics_stream():
+    async def generate_metrics():
+        while True:
+            metrics = {"cpu": get_cpu_usage(), "memory": get_memory_usage()}
+            yield f"data: {json.dumps(metrics)}\n\n"
+            await asyncio.sleep(1)
+    
+    return StreamingResponse(generate_metrics(), media_type="text/event-stream")
 ```
 
 ## Best Practices Demonstrated

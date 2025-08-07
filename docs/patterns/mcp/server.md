@@ -241,6 +241,86 @@ if __name__ == "__main__":
     asyncio.run(run_websocket_server(server, host="0.0.0.0", port=8080))
 ```
 
+### Streamable HTTP Transport (SSE)
+
+For real-time streaming capabilities, use Server-Sent Events:
+
+```python
+from mcp import McpServer
+from mcp.server.fastapi import create_app
+from mcp.types import Tool
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
+import time
+
+server = McpServer("streaming-server")
+
+@server.tool()
+async def stream_data_processing(data: str, chunk_size: int = 100) -> str:
+    """Process data in chunks and stream progress updates."""
+    items = data.split()
+    total = len(items)
+    
+    for i in range(0, total, chunk_size):
+        # Process chunk
+        chunk = items[i:i+chunk_size]
+        await asyncio.sleep(0.1)  # Simulate processing
+        
+        progress = min(i + chunk_size, total)
+        percentage = (progress / total) * 100
+        yield f"Processed {progress}/{total} items ({percentage:.1f}%)"
+    
+    return "Processing complete"
+
+@server.tool()
+async def real_time_monitoring(duration: int = 10) -> str:
+    """Stream real-time monitoring data."""
+    start_time = time.time()
+    
+    while time.time() - start_time < duration:
+        current_time = time.strftime("%H:%M:%S")
+        cpu_usage = 45.0 + (time.time() % 10)
+        memory_usage = 60.0 + (time.time() % 5)
+        
+        yield f"[{current_time}] CPU: {cpu_usage:.1f}%, Memory: {memory_usage:.1f}%"
+        await asyncio.sleep(1)
+    
+    return "Monitoring complete"
+
+# Create FastAPI app with streaming support
+app = create_app(server)
+
+@app.get("/health-stream")
+async def health_stream():
+    """Custom streaming endpoint for health monitoring."""
+    async def generate_health_data():
+        for i in range(10):
+            health_data = {
+                "timestamp": time.time(),
+                "status": "healthy",
+                "uptime": i * 1000,
+                "active_connections": 5 + (i % 3)
+            }
+            yield f"data: {json.dumps(health_data)}\n\n"
+            await asyncio.sleep(2)
+    
+    return StreamingResponse(
+        generate_health_data(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+For more detailed information on Streamable HTTP implementation, see [Streamable HTTP Documentation](./streamable-http.md).
+
 ## Configuration and Environment
 
 ### Environment Variables
