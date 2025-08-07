@@ -603,6 +603,8 @@ if __name__ == "__main__":
 
 #### JSON-RPC Version Mismatch
 
+**Important**: MCP uses JSON-RPC 2.0. For detailed information about JSON-RPC, see our [JSON-RPC guide](../../json-rpc.md).
+
 ```python
 # ❌ Problem: Using wrong JSON-RPC version
 request = {

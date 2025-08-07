@@ -56,9 +56,24 @@ Reusable prompt templates that can be dynamically populated:
 - **Protocol Specification**: [Official MCP Documentation](https://modelcontextprotocol.io/)
 
 ### Transport Methods
-- **Standard I/O (stdio)**: Direct process communication for local tools and development
-- **Server-Sent Events (SSE)**: HTTP-based streaming ideal for real-time updates, LLM token streaming, and long-running operations
-- **WebSocket**: Real-time bidirectional communication for interactive applications
+
+MCP supports multiple transport methods, each optimized for different use cases:
+
+#### Standard I/O (stdio)
+- **Best for**: Local processes and development
+- **Characteristics**: Very low latency, simple setup
+- **Use when**: Building CLI tools or local integrations
+
+#### Server-Sent Events (SSE) / Streamable HTTP
+- **Best for**: Web applications and real-time streaming
+- **Characteristics**: HTTP-compatible, progressive data delivery, browser support, ideal for LLM token streaming
+- **Use when**: Building web services, long-running operations, real-time monitoring, or streaming AI responses
+- **Learn more**: [Streamable HTTP Documentation](./streamable-http.md)
+
+#### WebSocket
+- **Best for**: Real-time interactive applications
+- **Characteristics**: Full-duplex communication, low overhead
+- **Use when**: Building chat applications or highly interactive systems
 
 ## Use Cases
 
@@ -107,6 +122,7 @@ AI Assistant ←→ MCP Gateway ←→ [Distributed MCP Services]
 
 - [Building an MCP Server](./server.md)
 - [Building an MCP Client](./client.md)
+- [Streamable HTTP Transport](./streamable-http.md) - **New!** Complete guide to HTTP streaming
 - [Implementation and Hosting](./hosting.md)
 - [Best Practices and Known Issues](./best-practices.md)
 

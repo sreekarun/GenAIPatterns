@@ -6,7 +6,7 @@ This guide covers building Model Context Protocol (MCP) servers using Python, fr
 
 - Python 3.8 or higher
 - Basic understanding of async programming
-- Familiarity with JSON-RPC protocol (helpful but not required)
+- Familiarity with JSON-RPC protocol (see our [JSON-RPC guide](../../json-rpc.md) for details)
 
 ## Installation
 
@@ -271,41 +271,71 @@ SSE was selected as an MCP transport method for several compelling reasons:
 ##### Basic SSE Server Setup
 
 ```python
-from mcp.server.sse import SseTransport
-from fastapi import FastAPI
+from mcp import McpServer
+from mcp.server.fastapi import create_app
+from mcp.types import Tool
 from fastapi.responses import StreamingResponse
 import asyncio
 import json
+import time
 
-app = FastAPI()
-server = McpServer("sse-example-server")
+server = McpServer("streaming-server")
 
 @server.tool()
-async def stream_data(query: str) -> str:
-    """Tool that streams data back to client."""
-    # Simulate streaming response
-    result = f"Processing query: {query}\n"
-    for i in range(5):
-        await asyncio.sleep(1)
-        result += f"Step {i+1} completed\n"
-    return result
-
-@app.get("/mcp/sse")
-async def mcp_sse_endpoint():
-    """SSE endpoint for MCP communication."""
+async def stream_data_processing(data: str, chunk_size: int = 100) -> str:
+    """Process data in chunks and stream progress updates."""
+    items = data.split()
+    total = len(items)
     
-    async def event_generator():
-        transport = SseTransport(server)
-        async for event in transport.stream_events():
-            yield f"data: {json.dumps(event)}\n\n"
+    for i in range(0, total, chunk_size):
+        # Process chunk
+        chunk = items[i:i+chunk_size]
+        await asyncio.sleep(0.1)  # Simulate processing
+        
+        progress = min(i + chunk_size, total)
+        percentage = (progress / total) * 100
+        yield f"Processed {progress}/{total} items ({percentage:.1f}%)"
+    
+    return "Processing complete"
+
+@server.tool()
+async def real_time_monitoring(duration: int = 10) -> str:
+    """Stream real-time monitoring data."""
+    start_time = time.time()
+    
+    while time.time() - start_time < duration:
+        current_time = time.strftime("%H:%M:%S")
+        cpu_usage = 45.0 + (time.time() % 10)
+        memory_usage = 60.0 + (time.time() % 5)
+        
+        yield f"[{current_time}] CPU: {cpu_usage:.1f}%, Memory: {memory_usage:.1f}%"
+        await asyncio.sleep(1)
+    
+    return "Monitoring complete"
+
+# Create FastAPI app with streaming support
+app = create_app(server)
+
+@app.get("/health-stream")
+async def health_stream():
+    """Custom streaming endpoint for health monitoring."""
+    async def generate_health_data():
+        for i in range(10):
+            health_data = {
+                "timestamp": time.time(),
+                "status": "healthy",
+                "uptime": i * 1000,
+                "active_connections": 5 + (i % 3)
+            }
+            yield f"data: {json.dumps(health_data)}\n\n"
+            await asyncio.sleep(2)
     
     return StreamingResponse(
-        event_generator(),
+        generate_health_data(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
+            "Connection": "keep-alive"
         }
     )
 
@@ -314,104 +344,31 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-##### Advanced SSE with Custom Event Types
+##### Advanced SSE with Custom Event Types and Error Handling
 
-> **Note:** The `SseEvent` class is used here as a conceptual example. Please refer to the MCP library documentation for the actual event structure or implement your own event class as needed.
 ```python
-from mcp.server.sse import SseTransport, SseEvent
-from typing import AsyncGenerator
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
 import time
+from typing import AsyncGenerator
 
-class CustomSseTransport(SseTransport):
-    """Custom SSE transport with specialized event handling."""
+app = FastAPI()
+server = McpServer("advanced-sse-server")
+
+@server.tool()
+async def long_running_analysis(dataset: str) -> str:
+    """Perform analysis with progress updates."""
+    steps = ["Loading", "Preprocessing", "Analysis", "Validation", "Complete"]
     
-    async def stream_tool_response(self, tool_name: str, args: dict) -> AsyncGenerator[SseEvent, None]:
-        """Stream tool execution with progress updates."""
-        
-        # Send start event
-        yield SseEvent(
-            event="tool_start",
-            data={"tool": tool_name, "timestamp": time.time()}
-        )
-        
-        # Execute tool and stream progress
-        try:
-            if tool_name == "long_running_analysis":
-                for progress in range(0, 101, 10):
-                    yield SseEvent(
-                        event="tool_progress", 
-                        data={"progress": progress, "status": f"Processing... {progress}%"}
-                    )
-                    await asyncio.sleep(0.5)  # Simulate work
-                
-                # Send final result
-                result = await server.call_tool(tool_name, args)
-                yield SseEvent(
-                    event="tool_complete",
-                    data={"result": result, "timestamp": time.time()}
-                )
-                
-        except Exception as e:
-            yield SseEvent(
-                event="tool_error",
-                data={"error": str(e), "timestamp": time.time()}
-            )
-
-@app.get("/mcp/tools/{tool_name}/sse")
-async def stream_tool_execution(tool_name: str):
-    """SSE endpoint for streaming tool execution."""
+    for i, step in enumerate(steps):
+        await asyncio.sleep(2)  # Simulate work
+        progress = (i + 1) / len(steps) * 100
+        yield f"Step {i+1}: {step} ({progress:.1f}% complete)"
     
-    async def tool_event_stream():
-        transport = CustomSseTransport(server)
-        async for event in transport.stream_tool_response(tool_name, {}):
-            yield f"event: {event.event}\n"
-            yield f"data: {json.dumps(event.data)}\n\n"
-    
-    return StreamingResponse(tool_event_stream(), media_type="text/event-stream")
-```
+    return "Analysis completed successfully"
 
-#### Usage Scenarios and Best Practices
-
-##### When to Use SSE Transport
-
-SSE is ideal for MCP servers when:
-
-- **Streaming LLM Responses**: Real-time token generation for chat applications
-- **Long-Running Tools**: Progress updates for data analysis, file processing, or ML model inference
-- **Resource Monitoring**: Live updates from databases, APIs, or system metrics
-- **Event Broadcasting**: Notifications, alerts, or status changes to multiple clients
-
-##### Implementation Best Practices
-
-```python
-# 1. Proper Error Handling and Reconnection
-@app.get("/mcp/sse")
-async def robust_sse_endpoint():
-    async def event_generator():
-        retry_count = 0
-        max_retries = 3
-        
-        while retry_count < max_retries:
-            try:
-                transport = SseTransport(server)
-                async for event in transport.stream_events():
-                    yield f"data: {json.dumps(event)}\n\n"
-                    retry_count = 0  # Reset on successful event
-                    
-            except Exception as e:
-                retry_count += 1
-                if retry_count < max_retries:
-                    yield f"event: retry\n"
-                    yield f"data: {json.dumps({'retry_in': 5000})}\n\n"
-                    await asyncio.sleep(5)
-                else:
-                    yield f"event: error\n"
-                    yield f"data: {json.dumps({'error': 'Max retries exceeded'})}\n\n"
-                    break
-    
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-# 2. Client Connection Management
 class SseConnectionManager:
     """Manage multiple SSE client connections."""
     
@@ -429,7 +386,7 @@ class SseConnectionManager:
         if client_id in self.active_connections:
             del self.active_connections[client_id]
     
-    async def broadcast(self, event: SseEvent):
+    async def broadcast(self, event: dict):
         """Send event to all connected clients."""
         for client_id, queue in self.active_connections.items():
             try:
@@ -437,27 +394,56 @@ class SseConnectionManager:
             except Exception:
                 await self.disconnect(client_id)
 
-# 3. Performance Optimization
-@app.get("/mcp/sse/optimized")
-async def optimized_sse_endpoint():
+connection_manager = SseConnectionManager()
+
+@app.get("/mcp/sse/advanced")
+async def advanced_sse_endpoint(request: Request):
+    """Advanced SSE endpoint with error handling and reconnection."""
+    
     async def event_generator():
-        # Use connection pooling and buffering
-        buffer_size = 10
-        event_buffer = []
+        client_id = request.client.host + str(time.time())
+        queue = await connection_manager.connect(client_id)
+        retry_count = 0
+        max_retries = 3
         
-        transport = SseTransport(server)
-        async for event in transport.stream_events():
-            event_buffer.append(event)
-            
-            # Batch events for better performance
-            if len(event_buffer) >= buffer_size:
-                for buffered_event in event_buffer:
-                    yield f"data: {json.dumps(buffered_event)}\n\n"
-                event_buffer.clear()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
                 
-        # Send remaining events
-        for remaining_event in event_buffer:
-            yield f"data: {json.dumps(remaining_event)}\n\n"
+                try:
+                    # Send periodic heartbeat
+                    heartbeat = {
+                        "event": "heartbeat",
+                        "data": {"timestamp": time.time()}
+                    }
+                    yield f"event: heartbeat\n"
+                    yield f"data: {json.dumps(heartbeat['data'])}\n\n"
+                    
+                    # Check for queued events
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=5.0)
+                        yield f"event: {event.get('event', 'message')}\n"
+                        yield f"data: {json.dumps(event.get('data', {}))}\n\n"
+                        retry_count = 0  # Reset on successful event
+                    except asyncio.TimeoutError:
+                        continue
+                        
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        yield f"event: retry\n"
+                        yield f"data: {json.dumps({'retry_in': 5000, 'attempt': retry_count})}\n\n"
+                        await asyncio.sleep(5)
+                    else:
+                        yield f"event: error\n"
+                        yield f"data: {json.dumps({'error': 'Max retries exceeded'})}\n\n"
+                        break
+                        
+        except asyncio.CancelledError:
+            print(f"SSE client {client_id} disconnected")
+        finally:
+            await connection_manager.disconnect(client_id)
     
     return StreamingResponse(
         event_generator(),
@@ -466,6 +452,86 @@ async def optimized_sse_endpoint():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable proxy buffering
+        }
+    )
+
+@app.get("/mcp/tools/{tool_name}/stream")
+async def stream_tool_execution(tool_name: str, request: Request):
+    """SSE endpoint for streaming tool execution."""
+    
+    async def tool_event_stream():
+        try:
+            # Send start event
+            yield f"event: tool_start\n"
+            yield f"data: {json.dumps({'tool': tool_name, 'timestamp': time.time()})}\n\n"
+            
+            # Stream tool execution
+            if tool_name == "long_running_analysis":
+                async for progress in server.call_tool(tool_name, {"dataset": "sample_data"}):
+                    if await request.is_disconnected():
+                        break
+                    yield f"event: tool_progress\n"
+                    yield f"data: {json.dumps({'progress': progress})}\n\n"
+                
+                # Send completion event
+                yield f"event: tool_complete\n"
+                yield f"data: {json.dumps({'timestamp': time.time()})}\n\n"
+                
+        except Exception as e:
+            yield f"event: tool_error\n"
+            yield f"data: {json.dumps({'error': str(e), 'timestamp': time.time()})}\n\n"
+    
+    return StreamingResponse(tool_event_stream(), media_type="text/event-stream")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+#### Usage Scenarios and Best Practices
+
+##### When to Use SSE Transport
+
+SSE is ideal for MCP servers when:
+
+- **Streaming LLM Responses**: Real-time token generation for chat applications
+- **Long-Running Tools**: Progress updates for data analysis, file processing, or ML model inference
+- **Resource Monitoring**: Live updates from databases, APIs, or system metrics
+- **Event Broadcasting**: Notifications, alerts, or status changes to multiple clients
+
+##### Performance Optimization Techniques
+
+```python
+# Batched event delivery for high-throughput scenarios
+@app.get("/mcp/sse/optimized")
+async def optimized_sse_endpoint():
+    async def event_generator():
+        buffer_size = 10
+        event_buffer = []
+        
+        # Simulate high-frequency events
+        for i in range(1000):
+            event = {"id": i, "data": f"Event {i}", "timestamp": time.time()}
+            event_buffer.append(event)
+            
+            # Batch events for better performance
+            if len(event_buffer) >= buffer_size:
+                batch_data = {"events": event_buffer}
+                yield f"data: {json.dumps(batch_data)}\n\n"
+                event_buffer.clear()
+                await asyncio.sleep(0.1)  # Control delivery rate
+                
+        # Send remaining events
+        if event_buffer:
+            batch_data = {"events": event_buffer}
+            yield f"data: {json.dumps(batch_data)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
         }
     )
 ```
@@ -481,42 +547,7 @@ async def optimized_sse_endpoint():
 | **Complexity** | Low | Medium | Low | Low |
 | **Use Case** | Real-time updates | Interactive apps | Simple requests | Local tools |
 
-#### Common Pitfalls and Solutions
-
-```python
-# 1. Avoid blocking operations in event streams
-# ❌ Bad: Blocking operation
-async def bad_event_generator():
-    time.sleep(5)  # Blocks entire event loop
-    yield "data: delayed\n\n"
-
-# ✅ Good: Non-blocking operation
-async def good_event_generator():
-    await asyncio.sleep(5)  # Non-blocking
-    yield "data: delayed\n\n"
-
-# 2. Handle client disconnections gracefully
-@app.get("/mcp/sse/graceful")
-async def graceful_sse_endpoint(request: Request):
-    async def event_generator():
-        try:
-            while True:
-                # Check if client is still connected
-                if await request.is_disconnected():
-                    break
-                    
-                yield f"data: {json.dumps({'ping': time.time()})}\n\n"
-                await asyncio.sleep(1)
-                
-        except asyncio.CancelledError:
-            # Client disconnected
-            print("SSE client disconnected")
-        finally:
-            # Cleanup resources
-            pass
-    
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-```
+For more detailed information on Streamable HTTP implementation, see [Streamable HTTP Documentation](./streamable-http.md).
 
 ## Configuration and Environment
 
