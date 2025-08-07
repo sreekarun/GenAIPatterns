@@ -6,7 +6,7 @@ This guide covers building Model Context Protocol (MCP) servers using Python, fr
 
 - Python 3.8 or higher
 - Basic understanding of async programming
-- Familiarity with JSON-RPC protocol (helpful but not required)
+- Familiarity with JSON-RPC protocol (see our [JSON-RPC guide](../../json-rpc.md) for details)
 
 ## Installation
 
