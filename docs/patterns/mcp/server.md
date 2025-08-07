@@ -316,6 +316,7 @@ if __name__ == "__main__":
 
 ##### Advanced SSE with Custom Event Types
 
+> **Note:** The `SseEvent` class is used here as a conceptual example. Please refer to the MCP library documentation for the actual event structure or implement your own event class as needed.
 ```python
 from mcp.server.sse import SseTransport, SseEvent
 from typing import AsyncGenerator
