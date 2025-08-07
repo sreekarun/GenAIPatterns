@@ -56,9 +56,9 @@ Reusable prompt templates that can be dynamically populated:
 - **Protocol Specification**: [Official MCP Documentation](https://modelcontextprotocol.io/)
 
 ### Transport Methods
-- **Standard I/O (stdio)**: Direct process communication
-- **Server-Sent Events (SSE)**: HTTP-based streaming
-- **WebSocket**: Real-time bidirectional communication
+- **Standard I/O (stdio)**: Direct process communication for local tools and development
+- **Server-Sent Events (SSE)**: HTTP-based streaming ideal for real-time updates, LLM token streaming, and long-running operations
+- **WebSocket**: Real-time bidirectional communication for interactive applications
 
 ## Use Cases
 
@@ -68,12 +68,14 @@ Reusable prompt templates that can be dynamically populated:
 3. **File System Access**: Read/write files and directories
 4. **External Services**: Integration with third-party services
 5. **Knowledge Management**: Access to documentation and knowledge bases
+6. **Real-time Streaming**: Live data feeds and streaming responses via SSE
 
 ### Industry Examples
-- **Customer Support**: Access to CRM systems and knowledge bases
-- **Development Tools**: Integration with IDEs, version control, and CI/CD
-- **Data Analytics**: Connection to data warehouses and analytics platforms
-- **Content Management**: Access to CMS systems and media libraries
+- **Customer Support**: Access to CRM systems and knowledge bases with real-time updates
+- **Development Tools**: Integration with IDEs, version control, and CI/CD with streaming build logs
+- **Data Analytics**: Connection to data warehouses with streaming query results
+- **Content Management**: Access to CMS systems with live content updates
+- **AI Applications**: Streaming LLM responses and real-time model inference updates
 
 ## Getting Started
 
