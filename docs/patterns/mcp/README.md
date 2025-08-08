@@ -64,7 +64,7 @@ MCP supports multiple transport methods, each optimized for different use cases:
 - **Characteristics**: Very low latency, simple setup
 - **Use when**: Building CLI tools or local integrations
 
-#### Server-Sent Events (SSE) / Streamable HTTP
+#### Streamable HTTP (Server-Sent Events)
 - **Best for**: Web applications and real-time streaming
 - **Characteristics**: HTTP-compatible, progressive data delivery, browser support, ideal for LLM token streaming
 - **Use when**: Building web services, long-running operations, real-time monitoring, or streaming AI responses

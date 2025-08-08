@@ -241,7 +241,7 @@ if __name__ == "__main__":
     asyncio.run(run_websocket_server(server, host="0.0.0.0", port=8080))
 ```
 
-### Server-Sent Events (SSE) Transport
+### Streamable HTTP Transport (Server-Sent Events)
 
 Server-Sent Events (SSE) provides an ideal transport mechanism for MCP servers that need to stream responses, deliver real-time updates, or handle long-running operations with continuous feedback.
 
