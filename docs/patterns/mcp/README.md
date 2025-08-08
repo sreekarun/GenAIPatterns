@@ -66,8 +66,8 @@ MCP supports multiple transport methods, each optimized for different use cases:
 
 #### Streamable HTTP (Server-Sent Events)
 - **Best for**: Web applications and real-time streaming
-- **Characteristics**: HTTP-compatible, progressive data delivery, browser support
-- **Use when**: Building web services, long-running operations, or real-time monitoring
+- **Characteristics**: HTTP-compatible, progressive data delivery, browser support, ideal for LLM token streaming
+- **Use when**: Building web services, long-running operations, real-time monitoring, or streaming AI responses
 - **Learn more**: [Streamable HTTP Documentation](./streamable-http.md)
 
 #### WebSocket
@@ -83,12 +83,14 @@ MCP supports multiple transport methods, each optimized for different use cases:
 3. **File System Access**: Read/write files and directories
 4. **External Services**: Integration with third-party services
 5. **Knowledge Management**: Access to documentation and knowledge bases
+6. **Real-time Streaming**: Live data feeds and streaming responses via SSE
 
 ### Industry Examples
-- **Customer Support**: Access to CRM systems and knowledge bases
-- **Development Tools**: Integration with IDEs, version control, and CI/CD
-- **Data Analytics**: Connection to data warehouses and analytics platforms
-- **Content Management**: Access to CMS systems and media libraries
+- **Customer Support**: Access to CRM systems and knowledge bases with real-time updates
+- **Development Tools**: Integration with IDEs, version control, and CI/CD with streaming build logs
+- **Data Analytics**: Connection to data warehouses with streaming query results
+- **Content Management**: Access to CMS systems with live content updates
+- **AI Applications**: Streaming LLM responses and real-time model inference updates
 
 ## Getting Started
 

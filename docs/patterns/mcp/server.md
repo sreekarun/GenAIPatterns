@@ -241,9 +241,34 @@ if __name__ == "__main__":
     asyncio.run(run_websocket_server(server, host="0.0.0.0", port=8080))
 ```
 
-### Streamable HTTP Transport (SSE)
+### Streamable HTTP Transport (Server-Sent Events)
 
-For real-time streaming capabilities, use Server-Sent Events:
+Server-Sent Events (SSE) provides an ideal transport mechanism for MCP servers that need to stream responses, deliver real-time updates, or handle long-running operations with continuous feedback.
+
+#### Historical Context and Evolution
+
+Server-Sent Events was introduced as part of the HTML5 specification (W3C) around 2009-2011, designed to enable servers to push real-time updates to web browsers over HTTP. Unlike WebSockets which provide bidirectional communication, SSE offers unidirectional server-to-client streaming, making it perfect for scenarios where the client primarily consumes data streams.
+
+The evolution of SSE in web technologies:
+- **2009-2011**: Initial HTML5 specification defined SSE
+- **2012-2015**: Browser adoption and standardization
+- **2016-2020**: Widespread use in real-time applications (dashboards, live feeds)
+- **2021-Present**: Adoption in AI/ML systems for streaming model responses
+
+#### Why SSE was Chosen for MCP
+
+SSE was selected as an MCP transport method for several compelling reasons:
+
+1. **Streaming-First Architecture**: Perfect for LLM responses that generate tokens incrementally
+2. **HTTP Compatibility**: Works seamlessly with existing web infrastructure (proxies, load balancers)
+3. **Automatic Reconnection**: Built-in reconnection handling for robust connections
+4. **Simplicity**: Easier to implement and debug compared to WebSockets
+5. **Firewall Friendly**: Standard HTTP traffic, no special network configuration required
+6. **Event-Driven**: Natural fit for MCP's event-based protocol design
+
+#### Implementation Examples
+
+##### Basic SSE Server Setup
 
 ```python
 from mcp import McpServer
@@ -318,6 +343,209 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
+
+##### Advanced SSE with Custom Event Types and Error Handling
+
+```python
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
+import time
+from typing import AsyncGenerator
+
+app = FastAPI()
+server = McpServer("advanced-sse-server")
+
+@server.tool()
+async def long_running_analysis(dataset: str) -> str:
+    """Perform analysis with progress updates."""
+    steps = ["Loading", "Preprocessing", "Analysis", "Validation", "Complete"]
+    
+    for i, step in enumerate(steps):
+        await asyncio.sleep(2)  # Simulate work
+        progress = (i + 1) / len(steps) * 100
+        yield f"Step {i+1}: {step} ({progress:.1f}% complete)"
+    
+    return "Analysis completed successfully"
+
+class SseConnectionManager:
+    """Manage multiple SSE client connections."""
+    
+    def __init__(self):
+        self.active_connections: dict[str, asyncio.Queue] = {}
+    
+    async def connect(self, client_id: str) -> asyncio.Queue:
+        """Register new SSE client."""
+        queue = asyncio.Queue()
+        self.active_connections[client_id] = queue
+        return queue
+    
+    async def disconnect(self, client_id: str):
+        """Remove SSE client."""
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+    
+    async def broadcast(self, event: dict):
+        """Send event to all connected clients."""
+        for client_id, queue in self.active_connections.items():
+            try:
+                await queue.put(event)
+            except Exception:
+                await self.disconnect(client_id)
+
+connection_manager = SseConnectionManager()
+
+@app.get("/mcp/sse/advanced")
+async def advanced_sse_endpoint(request: Request):
+    """Advanced SSE endpoint with error handling and reconnection."""
+    
+    async def event_generator():
+        client_id = request.client.host + str(time.time())
+        queue = await connection_manager.connect(client_id)
+        retry_count = 0
+        max_retries = 3
+        
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                
+                try:
+                    # Send periodic heartbeat
+                    heartbeat = {
+                        "event": "heartbeat",
+                        "data": {"timestamp": time.time()}
+                    }
+                    yield f"event: heartbeat\n"
+                    yield f"data: {json.dumps(heartbeat['data'])}\n\n"
+                    
+                    # Check for queued events
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=5.0)
+                        yield f"event: {event.get('event', 'message')}\n"
+                        yield f"data: {json.dumps(event.get('data', {}))}\n\n"
+                        retry_count = 0  # Reset on successful event
+                    except asyncio.TimeoutError:
+                        continue
+                        
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        yield f"event: retry\n"
+                        yield f"data: {json.dumps({'retry_in': 5000, 'attempt': retry_count})}\n\n"
+                        await asyncio.sleep(5)
+                    else:
+                        yield f"event: error\n"
+                        yield f"data: {json.dumps({'error': 'Max retries exceeded'})}\n\n"
+                        break
+                        
+        except asyncio.CancelledError:
+            print(f"SSE client {client_id} disconnected")
+        finally:
+            await connection_manager.disconnect(client_id)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable proxy buffering
+        }
+    )
+
+@app.get("/mcp/tools/{tool_name}/stream")
+async def stream_tool_execution(tool_name: str, request: Request):
+    """SSE endpoint for streaming tool execution."""
+    
+    async def tool_event_stream():
+        try:
+            # Send start event
+            yield f"event: tool_start\n"
+            yield f"data: {json.dumps({'tool': tool_name, 'timestamp': time.time()})}\n\n"
+            
+            # Stream tool execution
+            if tool_name == "long_running_analysis":
+                async for progress in server.call_tool(tool_name, {"dataset": "sample_data"}):
+                    if await request.is_disconnected():
+                        break
+                    yield f"event: tool_progress\n"
+                    yield f"data: {json.dumps({'progress': progress})}\n\n"
+                
+                # Send completion event
+                yield f"event: tool_complete\n"
+                yield f"data: {json.dumps({'timestamp': time.time()})}\n\n"
+                
+        except Exception as e:
+            yield f"event: tool_error\n"
+            yield f"data: {json.dumps({'error': str(e), 'timestamp': time.time()})}\n\n"
+    
+    return StreamingResponse(tool_event_stream(), media_type="text/event-stream")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+#### Usage Scenarios and Best Practices
+
+##### When to Use SSE Transport
+
+SSE is ideal for MCP servers when:
+
+- **Streaming LLM Responses**: Real-time token generation for chat applications
+- **Long-Running Tools**: Progress updates for data analysis, file processing, or ML model inference
+- **Resource Monitoring**: Live updates from databases, APIs, or system metrics
+- **Event Broadcasting**: Notifications, alerts, or status changes to multiple clients
+
+##### Performance Optimization Techniques
+
+```python
+# Batched event delivery for high-throughput scenarios
+@app.get("/mcp/sse/optimized")
+async def optimized_sse_endpoint():
+    async def event_generator():
+        buffer_size = 10
+        event_buffer = []
+        
+        # Simulate high-frequency events
+        for i in range(1000):
+            event = {"id": i, "data": f"Event {i}", "timestamp": time.time()}
+            event_buffer.append(event)
+            
+            # Batch events for better performance
+            if len(event_buffer) >= buffer_size:
+                batch_data = {"events": event_buffer}
+                yield f"data: {json.dumps(batch_data)}\n\n"
+                event_buffer.clear()
+                await asyncio.sleep(0.1)  # Control delivery rate
+                
+        # Send remaining events
+        if event_buffer:
+            batch_data = {"events": event_buffer}
+            yield f"data: {json.dumps(batch_data)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+```
+
+#### Comparison with Other Transport Methods
+
+| Feature | SSE | WebSocket | HTTP | stdio |
+|---------|-----|-----------|------|-------|
+| **Directionality** | Server → Client | Bidirectional | Request/Response | Bidirectional |
+| **Reconnection** | Automatic | Manual | N/A | N/A |
+| **Infrastructure** | HTTP-friendly | Special handling | Standard | Process-based |
+| **Streaming** | Excellent | Excellent | Limited | Good |
+| **Complexity** | Low | Medium | Low | Low |
+| **Use Case** | Real-time updates | Interactive apps | Simple requests | Local tools |
 
 For more detailed information on Streamable HTTP implementation, see [Streamable HTTP Documentation](./streamable-http.md).
 
