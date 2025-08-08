@@ -6,6 +6,7 @@ This directory contains comprehensive documentation for all GenAI patterns in th
 
 - [`patterns/`](./patterns/) - Pattern-specific documentation
   - [`mcp/`](./patterns/mcp/) - Model Context Protocol documentation
+- [`chunking.md`](./chunking.md) - Comprehensive guide to chunking in GenAI applications
 - [`json-rpc.md`](./json-rpc.md) - JSON-RPC 2.0 protocol documentation
 
 ## Documentation Standards

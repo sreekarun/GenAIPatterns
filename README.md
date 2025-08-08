@@ -32,9 +32,10 @@ Complete implementation guide for building MCP servers and clients, including:
 - Best practices and troubleshooting
 
 ### Coming Soon
-- OpenAI Agentic Framework patterns
+- OpenAI Agentic Framework patterns  
 - LangGraph implementation examples
 - Multi-agent systems
+- [Chunking Patterns](./docs/chunking.md) - **Now Available!** Comprehensive guide to chunking in GenAI
 - RAG (Retrieval-Augmented Generation) patterns
 
 ## 🛠 Getting Started
