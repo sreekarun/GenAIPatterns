@@ -11,7 +11,7 @@ Chunking is a fundamental preprocessing technique in Generative AI and Retrieval
 ```mermaid
 graph TD
     A[Large Document] --> B[Document Preprocessing]
-    B --> C[Text Cleaning & Normalization]
+    B --> C[Text Cleaning and Normalization]
     C --> D[Chunking Strategy]
     D --> E[Fixed Size Chunks]
     D --> F[Semantic Chunks]
@@ -24,7 +24,7 @@ graph TD
     J --> K[Similarity Search]
     K --> L[Retrieved Chunks]
     L --> M[Context Assembly]
-    M --> N[LLM Query + Context]
+    M --> N[LLM Query with Context]
     N --> O[Generated Response]
 
     style A fill:#e1f5fe
