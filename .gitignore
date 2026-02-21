@@ -128,6 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Node (e.g. stocks-mcp chat-ui)
+node_modules/
+
 # IDE files
 .vscode/
 .idea/

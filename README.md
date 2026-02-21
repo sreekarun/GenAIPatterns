@@ -31,6 +31,9 @@ Complete implementation guide for building MCP servers and clients, including:
 - Hosting and deployment strategies
 - Best practices and troubleshooting
 
+### [Stocks MCP (OpenAI Agents SDK)](./patterns/stocks-mcp/)
+Minimal MCP server (stock data via yfinance) and OpenAI Agents SDK client; single-command run from the client.
+
 ### Coming Soon
 - OpenAI Agentic Framework patterns  
 - LangGraph implementation examples
