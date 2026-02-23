@@ -154,32 +154,28 @@ async def get_info(symbol: str) -> str:
         )) from e
 
 
-async def main_async() -> None:
-    """Run the MCP server asynchronously."""
-    logger.info("Starting Stocks MCP Server (stdio)...")
-    logger.info("Tools: get_quote, get_info")
-    try:
-        await server.run()
-    except KeyboardInterrupt:
-        logger.info("Server stopped by user")
-    except Exception as e:
-        logger.error("Server error: %s", e)
-        raise
-
-
 def main() -> None:
     """Run the MCP server over stdio (used when launched by the client or chat API)."""
+    logger.info("Starting Stocks MCP Server (stdio)...")
+    logger.info("Tools: get_quote, get_info")
     try:
         # Check if there's already a running event loop (cloud environment)
         try:
             loop = asyncio.get_running_loop()
-            # Event loop already exists, run as a coroutine
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                executor.submit(asyncio.run, main_async())
+            # Event loop already exists - use nest_asyncio to allow nested loops
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except ImportError:
+                logger.warning("nest_asyncio not installed, attempting direct run...")
+            
+            # Run the server
+            asyncio.run(server.run())
         except RuntimeError:
-            # No event loop, create one
-            asyncio.run(main_async())
+            # No event loop, create one normally
+            asyncio.run(server.run())
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
     except Exception as e:
         logger.error("Server error: %s", e)
         raise
