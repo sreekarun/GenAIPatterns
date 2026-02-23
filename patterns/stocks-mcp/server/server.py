@@ -16,6 +16,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ErrorData
 import json
 import logging
+import asyncio
+import sys
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -152,14 +154,32 @@ async def get_info(symbol: str) -> str:
         )) from e
 
 
-def main() -> None:
-    """Run the MCP server over stdio (used when launched by the client or chat API)."""
+async def main_async() -> None:
+    """Run the MCP server asynchronously."""
     logger.info("Starting Stocks MCP Server (stdio)...")
     logger.info("Tools: get_quote, get_info")
     try:
-        server.run()
+        await server.run()
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error("Server error: %s", e)
+        raise
+
+
+def main() -> None:
+    """Run the MCP server over stdio (used when launched by the client or chat API)."""
+    try:
+        # Check if there's already a running event loop (cloud environment)
+        try:
+            loop = asyncio.get_running_loop()
+            # Event loop already exists, run as a coroutine
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.submit(asyncio.run, main_async())
+        except RuntimeError:
+            # No event loop, create one
+            asyncio.run(main_async())
     except Exception as e:
         logger.error("Server error: %s", e)
         raise

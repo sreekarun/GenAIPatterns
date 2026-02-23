@@ -49,18 +49,27 @@ Minimal MCP server (stock data via yfinance) and OpenAI Agents SDK client; singl
    cd GenAIPatterns
    ```
 
-2. **Install dependencies**
+2. **Create and activate a virtual environment (recommended)**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip
+   ```
+
+   > **Tip (VS Code):** You can auto-create this environment on project open by adding a task or prompt in `.vscode/tasks.json` or `.vscode/settings.json`.
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Choose a pattern**
+4. **Choose a pattern**
    Navigate to the specific pattern directory you're interested in:
    ```bash
    cd patterns/mcp
    ```
 
-4. **Follow the pattern-specific documentation**
+5. **Follow the pattern-specific documentation**
    Each pattern includes detailed README files with implementation instructions.
 
 ## 📖 Documentation
